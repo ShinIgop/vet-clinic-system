@@ -9,9 +9,9 @@ public class DBConnection {
 
         try {
             conn = DriverManager.getConnection(
-                "jdbc:mysql://YOUR_RAILWAY_HOST:PORT/YOUR_DB",
-                "YOUR_USERNAME",
-                "YOUR_PASSWORD"
+                "jdbc:mysql://mainline.proxy.rlwy.net:41960/railway",
+                "root",
+                "MprIlzUpEsvDrppnAxhdyDreWMeAannB"
             );
 
             System.out.println("Connected to Railway MySQL!");
