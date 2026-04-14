@@ -1,0 +1,880 @@
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.sql.*;
+
+public class VetClinicSystem extends JFrame {
+
+    CardLayout card = new CardLayout();
+    JPanel main = new JPanel(card);
+
+    JTextField user = new JTextField();
+    JPasswordField pass = new JPasswordField();
+
+    String currentUser;
+    String currentRole;
+
+    // ================= DB =================
+    static Connection connect() {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            return DriverManager.getConnection(
+                "jdbc:mysql://localhost:3306/vet_clinic_db",
+                "root",
+                "admin" // Change to your local DB password if different
+            );
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, e.getMessage());
+            return null;
+        }
+    }
+
+    // ================= MAIN =================
+    public VetClinicSystem() {
+        setTitle("Vet Clinic System");
+        setSize(1100,700);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        main.add(loginUI(), "login");
+        main.add(registerUI(), "register");
+        add(main);
+
+        card.show(main, "login");
+        setVisible(true);
+    }
+
+    // ================= LOGIN UI =================
+    JPanel loginUI() {
+        JPanel p = new JPanel();
+        p.setLayout(null);
+        p.setBackground(new Color(44,62,80));
+
+        JLabel t = new JLabel("🐾 VET CLINIC LOGIN");
+        t.setBounds(420,80,300,40);
+        t.setForeground(Color.WHITE);
+        t.setFont(new Font("Arial", Font.BOLD, 22));
+
+        JLabel u = new JLabel("Username:");
+        u.setBounds(380,170,100,25);
+        u.setForeground(Color.WHITE);
+
+        user.setBounds(480,170,200,25);
+
+        JLabel pa = new JLabel("Password:");
+        pa.setBounds(380,220,100,25);
+        pa.setForeground(Color.WHITE);
+
+        pass.setBounds(480,220,200,25);
+
+        JButton btn = new JButton("LOGIN");
+        btn.setBounds(480,280,95,35);
+
+        btn.addActionListener(e -> login());
+
+        JButton regBtn = new JButton("SIGN UP");
+        regBtn.setBounds(585,280,95,35);
+        regBtn.addActionListener(e -> card.show(main, "register"));
+
+        JButton forgotBtn = new JButton("Forgot Password?");
+        forgotBtn.setBounds(480, 325, 200, 30);
+        forgotBtn.addActionListener(e -> {
+            String uname = JOptionPane.showInputDialog(p, "Enter Username to reset password:");
+            if (uname != null && !uname.trim().isEmpty()) {
+                JPasswordField pf = new JPasswordField();
+                int okCxl = JOptionPane.showConfirmDialog(p, pf, "Enter New Password:", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+                if (okCxl == JOptionPane.OK_OPTION) {
+                    String newP = new String(pf.getPassword());
+                    if (!newP.trim().isEmpty()) {
+                        try {
+                            Connection con = connect();
+                            if (con != null) {
+                                PreparedStatement ps = con.prepareStatement("UPDATE users SET password=? WHERE username=?");
+                                ps.setString(1, newP);
+                                ps.setString(2, uname);
+                                int updated = ps.executeUpdate();
+                                if (updated > 0) {
+                                    JOptionPane.showMessageDialog(p, "Password reset successful!");
+                                } else {
+                                    JOptionPane.showMessageDialog(p, "Username not found.");
+                                }
+                            }
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(p, "Error resetting password: " + ex.getMessage());
+                        }
+                    }
+                }
+            }
+        });
+
+        p.add(t); p.add(u); p.add(user);
+        p.add(pa); p.add(pass); p.add(btn); p.add(regBtn); p.add(forgotBtn);
+
+        return p;
+    }
+
+    // ================= REGISTER UI =================
+    JPanel registerUI() {
+        JPanel p = new JPanel();
+        p.setLayout(null);
+        p.setBackground(new Color(44,62,80));
+
+        JLabel t = new JLabel("🐾 REGISTER NEW ACCOUNT");
+        t.setBounds(390,80,350,40);
+        t.setForeground(Color.WHITE);
+        t.setFont(new Font("Arial", Font.BOLD, 22));
+
+        JLabel u = new JLabel("Username:");
+        u.setBounds(380,150,100,25);
+        u.setForeground(Color.WHITE);
+        JTextField regUser = new JTextField();
+        regUser.setBounds(480,150,200,25);
+
+        JLabel pa = new JLabel("Password:");
+        pa.setBounds(380,200,100,25);
+        pa.setForeground(Color.WHITE);
+        JPasswordField regPass = new JPasswordField();
+        regPass.setBounds(480,200,200,25);
+
+        JLabel ro = new JLabel("Role:");
+        ro.setBounds(380,250,100,25);
+        ro.setForeground(Color.WHITE);
+        String[] roles = {"customer", "admin", "reception", "vet", "accountant"};
+        JComboBox<String> roleCombo = new JComboBox<>(roles);
+        roleCombo.setBounds(480,250,200,25);
+
+        JCheckBox termsCheck = new JCheckBox("I agree to Terms & Conditions");
+        termsCheck.setBounds(380, 280, 200, 25);
+        termsCheck.setBackground(new Color(44,62,80));
+        termsCheck.setForeground(Color.WHITE);
+
+        JButton termsBtn = new JButton("Read T&C");
+        termsBtn.setBounds(585, 280, 95, 25);
+        termsBtn.addActionListener(e -> {
+            String shortTerms = "TailWise Vet Clinic System – Terms & Conditions\n\n" +
+                                "By logging in, you agree to use this system for authorized clinic purposes only.\n\n" +
+                                "All data must be kept confidential in accordance with the Data Privacy Act of 2012.\n" +
+                                "Unauthorized access, sharing, or misuse of information is strictly prohibited.\n\n" +
+                                "The system is provided “as is,” and the developer is not liable for data loss or incorrect entries.\n\n" +
+                                "Proceed only if you agree to these terms.";
+            JTextArea textArea = new JTextArea(shortTerms);
+            textArea.setEditable(false);
+            textArea.setLineWrap(true);
+            textArea.setWrapStyleWord(true);
+            JScrollPane scrollPane = new JScrollPane(textArea);
+            scrollPane.setPreferredSize(new Dimension(350, 150));
+            JOptionPane.showMessageDialog(p, scrollPane, "Terms & Conditions", JOptionPane.INFORMATION_MESSAGE);
+        });
+
+        JButton submitBtn = new JButton("Submit");
+        submitBtn.setBounds(480,315,95,35);
+        submitBtn.addActionListener(e -> {
+            if (!termsCheck.isSelected()) {
+                JOptionPane.showMessageDialog(this, "You must agree to the Terms & Conditions to register.");
+                return;
+            }
+            try {
+                Connection con = connect();
+                if(con == null) return;
+                PreparedStatement ps = con.prepareStatement(
+                    "INSERT INTO users(username, password, role) VALUES(?,?,?)"
+                );
+                ps.setString(1, regUser.getText());
+                ps.setString(2, new String(regPass.getPassword()));
+                ps.setString(3, roleCombo.getSelectedItem().toString());
+                ps.executeUpdate();
+                
+                JOptionPane.showMessageDialog(this, "Registration Successful! Account created.");
+                regUser.setText("");
+                regPass.setText("");
+                termsCheck.setSelected(false);
+                card.show(main, "login");
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Registration Error: " + ex.getMessage());
+            }
+        });
+
+        JButton backBtn = new JButton("Back");
+        backBtn.setBounds(585,315,95,35);
+        backBtn.addActionListener(e -> card.show(main, "login"));
+
+        p.add(t); p.add(u); p.add(regUser);
+        p.add(pa); p.add(regPass); p.add(ro); p.add(roleCombo);
+        p.add(termsCheck); p.add(termsBtn);
+        p.add(submitBtn); p.add(backBtn);
+
+        return p;
+    }
+
+    // ================= LOGIN LOGIC =================
+    void login() {
+        String shortTerms = "TailWise Vet Clinic System – Terms & Conditions\n\n" +
+                            "By logging in, you agree to use this system for authorized clinic purposes only.\n\n" +
+                            "All data must be kept confidential in accordance with the Data Privacy Act of 2012.\n" +
+                            "Unauthorized access, sharing, or misuse of information is strictly prohibited.\n\n" +
+                            "The system is provided “as is,” and the developer is not liable for data loss or incorrect entries.\n\n" +
+                            "Proceed only if you agree to these terms.";
+                            
+        JTextArea textArea = new JTextArea(shortTerms);
+        textArea.setEditable(false);
+        textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        scrollPane.setPreferredSize(new Dimension(350, 150));
+        
+        int confirm = JOptionPane.showConfirmDialog(this, scrollPane, "Terms & Conditions", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+        
+        if (confirm != JOptionPane.OK_OPTION) {
+            return; // Cancel login if they don't accept
+        }
+
+        try {
+            Connection con = connect();
+
+            PreparedStatement ps = con.prepareStatement(
+                "SELECT role FROM users WHERE username=? AND password=?"
+            );
+
+            ps.setString(1, user.getText());
+            ps.setString(2, new String(pass.getPassword()));
+
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                currentUser = user.getText();
+                currentRole = rs.getString("role");
+
+                // Automatically record the login instance into login_logs
+                try {
+                    PreparedStatement psLog = con.prepareStatement(
+                        "INSERT INTO login_logs(username) VALUES(?)"
+                    );
+                    psLog.setString(1, currentUser);
+                    psLog.executeUpdate();
+                } catch(Exception ignored) {}
+
+                // Initialize role-specific dashboard and add to main card layout
+                main.add(dashboardUI(), "dash");
+                card.show(main, "dash");
+
+            } else {
+                JOptionPane.showMessageDialog(this, "Invalid Login");
+            }
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, e.getMessage());
+        }
+    }
+
+    // ================= DASHBOARD =================
+    JPanel dashboardUI() {
+
+        JPanel root = new JPanel(new BorderLayout());
+
+        // SIDEBAR
+        JPanel side = new JPanel(new GridLayout(8,1));
+        side.setPreferredSize(new Dimension(200,0));
+        side.setBackground(new Color(52,73,94));
+
+        JLabel roleLabel = new JLabel(currentRole.toUpperCase(), SwingConstants.CENTER);
+        roleLabel.setForeground(Color.WHITE);
+        side.add(roleLabel);
+
+        // CENTER
+        JPanel center = new JPanel(new CardLayout());
+        CardLayout cl = (CardLayout) center.getLayout();
+
+        // 1. Home Panel
+        JPanel home = new JPanel();
+        home.add(new JLabel("Welcome " + currentUser + " (" + currentRole + ")"));
+        center.add(home, "home");
+
+        // Set up the appropriate panels into center Layout depending on the role
+        // Provide standard components that were already available
+        center.add(inventoryPanel(), "inv");
+        center.add(appointmentPanel(), "app");
+        // Actual Dashboards replace placeholders
+        center.add(clientsAndPetsPanel(), "clients");
+        center.add(medicalRecordsPanel(), "records");
+        center.add(billingPanel(), "billing");
+        
+        // Add the Actual Users Dashboard Panel
+        center.add(userManagementPanel(), "users");
+        
+        // Add Dynamic Buttons to the Sidebar Based on the specific roles
+        JButton homeBtn = new JButton("Home Dashboard");
+        homeBtn.addActionListener(e -> cl.show(center, "home"));
+        side.add(homeBtn);
+
+        // ================= ADMIN DASHBOARD =================
+        if (currentRole.equals("admin")) {
+            JButton inv = new JButton("Inventory");
+            inv.addActionListener(e -> cl.show(center,"inv"));
+            side.add(inv);
+
+            JButton app = new JButton("Appointments");
+            app.addActionListener(e -> cl.show(center,"app"));
+            side.add(app);
+
+            JButton userBtn = new JButton("Manage Users");
+            userBtn.addActionListener(e -> {
+                loadUsers(); // Refresh when users tab is opened
+                cl.show(center, "users");
+            });
+            side.add(userBtn);
+        }
+        // ================= RECEPTION DASHBOARD =================
+        else if (currentRole.equals("reception")) {
+            JButton app = new JButton("Appointments Scheduler");
+            app.addActionListener(e -> cl.show(center,"app"));
+            side.add(app);
+
+            JButton clientBtn = new JButton("Clients & Pets");
+            clientBtn.addActionListener(e -> {
+                loadClients();
+                loadPets();
+                cl.show(center, "clients");
+            });
+            side.add(clientBtn);
+        }
+        // ================= VET DASHBOARD =================
+        else if (currentRole.equals("vet")) {
+            JButton app = new JButton("My Appointments");
+            app.addActionListener(e -> cl.show(center,"app"));
+            side.add(app);
+
+            JButton recordsBtn = new JButton("Medical Records");
+            recordsBtn.addActionListener(e -> {
+                loadRecords();
+                cl.show(center, "records");
+            });
+            side.add(recordsBtn);
+            
+            JButton petsBtn = new JButton("View Pets Dashboard");
+            petsBtn.addActionListener(e -> {
+                loadClients();
+                loadPets();
+                cl.show(center, "clients");
+            });
+            side.add(petsBtn);
+        }
+        // ================= ACCOUNTANT DASHBOARD =================
+        else if (currentRole.equals("accountant")) {
+            JButton billingBtn = new JButton("Billing & Payments");
+            billingBtn.addActionListener(e -> {
+                loadBills();
+                cl.show(center, "billing");
+            });
+            side.add(billingBtn);
+        }
+        // ================= CUSTOMER DASHBOARD =================
+        else if (currentRole.equals("customer")) {
+            JButton petsBtn = new JButton("My Pets");
+            petsBtn.addActionListener(e -> {
+                loadClients();
+                loadPets();
+                cl.show(center, "clients");
+            });
+            side.add(petsBtn);
+
+            JButton myAppBtn = new JButton("Book/View Appointments");
+            myAppBtn.addActionListener(e -> cl.show(center,"app"));
+            side.add(myAppBtn);
+            
+            JButton myBillingBtn = new JButton("My Bills");
+            myBillingBtn.addActionListener(e -> {
+                loadBills();
+                cl.show(center, "billing");
+            });
+            side.add(myBillingBtn);
+        }
+
+        // Add Logout
+        JButton logout = new JButton("Logout");
+        logout.addActionListener(e -> {
+            card.show(main,"login");
+            user.setText("");
+            pass.setText("");
+        });
+
+        // Add empty labels to push logout button to the bottom
+        int remain = 8 - side.getComponentCount() - 1;
+        for (int i = 0; i < remain; i++) {
+            side.add(new JLabel(""));
+        }
+        
+        side.add(logout);
+
+        root.add(side, BorderLayout.WEST);
+        root.add(center, BorderLayout.CENTER);
+
+        return root;
+    }
+
+    // ================= CLIENTS AND PETS =================
+    DefaultTableModel clientModel;
+    DefaultTableModel petModel;
+
+    JPanel clientsAndPetsPanel() {
+        JPanel p = new JPanel(new GridLayout(2, 1));
+        
+        // --- Clients ---
+        JPanel clientPanel = new JPanel(new BorderLayout());
+        clientPanel.setBorder(BorderFactory.createTitledBorder("Clients Management"));
+        clientModel = new DefaultTableModel(new String[]{"ID", "Name", "Phone", "Email"}, 0);
+        JTable clientTable = new JTable(clientModel);
+        loadClients();
+        
+        JPanel clientTop = new JPanel();
+        JTextField cName = new JTextField(10);
+        JTextField cPhone = new JTextField(10);
+        JTextField cEmail = new JTextField(10);
+        JButton addClient = new JButton("Add Client");
+        
+        addClient.addActionListener(e -> {
+            try {
+                Connection con = connect();
+                PreparedStatement ps = con.prepareStatement(
+                    "INSERT INTO clients(full_name, phone, email) VALUES(?,?,?)"
+                );
+                ps.setString(1, cName.getText());
+                ps.setString(2, cPhone.getText());
+                ps.setString(3, cEmail.getText());
+                ps.executeUpdate();
+                loadClients();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage());
+            }
+        });
+        
+        clientTop.add(new JLabel("Name:")); clientTop.add(cName);
+        clientTop.add(new JLabel("Phone:")); clientTop.add(cPhone);
+        clientTop.add(new JLabel("Email:")); clientTop.add(cEmail);
+        clientTop.add(addClient);
+        
+        clientPanel.add(clientTop, BorderLayout.NORTH);
+        clientPanel.add(new JScrollPane(clientTable), BorderLayout.CENTER);
+        
+        // --- Pets ---
+        JPanel petPanel = new JPanel(new BorderLayout());
+        petPanel.setBorder(BorderFactory.createTitledBorder("Pets Management"));
+        petModel = new DefaultTableModel(new String[]{"ID", "Client ID", "Name", "Species", "Breed"}, 0);
+        JTable petTable = new JTable(petModel);
+        loadPets();
+        
+        JPanel petTop = new JPanel();
+        JTextField pClient = new JTextField(5);
+        JTextField pName = new JTextField(10);
+        JTextField pSpecies = new JTextField(10);
+        JButton addPet = new JButton("Add Pet");
+        
+        addPet.addActionListener(e -> {
+            try {
+                Connection con = connect();
+                PreparedStatement ps = con.prepareStatement(
+                    "INSERT INTO pets(client_id, name, species) VALUES(?,?,?)"
+                );
+                ps.setInt(1, Integer.parseInt(pClient.getText()));
+                ps.setString(2, pName.getText());
+                ps.setString(3, pSpecies.getText());
+                ps.executeUpdate();
+                loadPets();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage());
+            }
+        });
+        
+        petTop.add(new JLabel("Client ID:")); petTop.add(pClient);
+        petTop.add(new JLabel("Pet Name:")); petTop.add(pName);
+        petTop.add(new JLabel("Species:")); petTop.add(pSpecies);
+        petTop.add(addPet);
+        
+        petPanel.add(petTop, BorderLayout.NORTH);
+        petPanel.add(new JScrollPane(petTable), BorderLayout.CENTER);
+        
+        p.add(clientPanel);
+        p.add(petPanel);
+        
+        return p;
+    }
+
+    void loadClients() {
+        if(clientModel == null) return;
+        try {
+            Connection con = connect();
+            if(con == null) return;
+            clientModel.setRowCount(0);
+            ResultSet rs = con.createStatement().executeQuery("SELECT client_id, full_name, phone, email FROM clients");
+            while (rs.next()) {
+                clientModel.addRow(new Object[]{
+                    rs.getInt("client_id"),
+                    rs.getString("full_name"),
+                    rs.getString("phone"),
+                    rs.getString("email")
+                });
+            }
+        } catch (Exception e) {}
+    }
+
+    void loadPets() {
+        if(petModel == null) return;
+        try {
+            Connection con = connect();
+            if(con == null) return;
+            petModel.setRowCount(0);
+            ResultSet rs = con.createStatement().executeQuery("SELECT pet_id, client_id, name, species, breed FROM pets");
+            while (rs.next()) {
+                petModel.addRow(new Object[]{
+                    rs.getInt("pet_id"),
+                    rs.getInt("client_id"),
+                    rs.getString("name"),
+                    rs.getString("species"),
+                    rs.getString("breed")
+                });
+            }
+        } catch (Exception e) {}
+    }
+
+    // ================= MEDICAL RECORDS =================
+    DefaultTableModel recordsModel;
+
+    JPanel medicalRecordsPanel() {
+        JPanel p = new JPanel(new BorderLayout());
+        
+        recordsModel = new DefaultTableModel(new String[]{"ID", "Pet ID", "Vet ID", "Diagnosis", "Date"}, 0);
+        JTable table = new JTable(recordsModel);
+        loadRecords();
+        
+        JPanel top = new JPanel();
+        JTextField rPet = new JTextField(5);
+        JTextField rVet = new JTextField(5);
+        JTextField rDiag = new JTextField(15);
+        JButton add = new JButton("Add Record");
+        
+        add.addActionListener(e -> {
+            try {
+                Connection con = connect();
+                PreparedStatement ps = con.prepareStatement(
+                    "INSERT INTO medical_records(pet_id, vet_id, diagnosis) VALUES(?,?,?)"
+                );
+                ps.setInt(1, Integer.parseInt(rPet.getText()));
+                ps.setInt(2, Integer.parseInt(rVet.getText()));
+                ps.setString(3, rDiag.getText());
+                ps.executeUpdate();
+                loadRecords();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage());
+            }
+        });
+        
+        top.add(new JLabel("Pet ID:")); top.add(rPet);
+        top.add(new JLabel("Vet ID:")); top.add(rVet);
+        top.add(new JLabel("Diagnosis:")); top.add(rDiag);
+        top.add(add);
+        
+        p.add(top, BorderLayout.NORTH);
+        p.add(new JScrollPane(table), BorderLayout.CENTER);
+        
+        return p;
+    }
+
+    void loadRecords() {
+        if(recordsModel == null) return;
+        try {
+            Connection con = connect();
+            if(con == null) return;
+            recordsModel.setRowCount(0);
+            ResultSet rs = con.createStatement().executeQuery("SELECT record_id, pet_id, vet_id, diagnosis, record_date FROM medical_records");
+            while (rs.next()) {
+                recordsModel.addRow(new Object[]{
+                    rs.getInt("record_id"),
+                    rs.getInt("pet_id"),
+                    rs.getInt("vet_id"),
+                    rs.getString("diagnosis"),
+                    rs.getString("record_date")
+                });
+            }
+        } catch (Exception e) {}
+    }
+
+    // ================= BILLING & TRACKING =================
+    DefaultTableModel billingModel;
+
+    JPanel billingPanel() {
+        JPanel p = new JPanel(new BorderLayout());
+        
+        billingModel = new DefaultTableModel(new String[]{"Bill ID", "Client ID", "Amount", "Date"}, 0);
+        JTable table = new JTable(billingModel);
+        loadBills();
+        
+        JPanel top = new JPanel();
+        JTextField bClient = new JTextField(5);
+        JTextField bAmount = new JTextField(10);
+        JButton add = new JButton("Add Bill");
+        
+        add.addActionListener(e -> {
+            try {
+                Connection con = connect();
+                PreparedStatement ps = con.prepareStatement(
+                    "INSERT INTO bills(client_id, total_amount) VALUES(?,?)"
+                );
+                ps.setInt(1, Integer.parseInt(bClient.getText()));
+                ps.setDouble(2, Double.parseDouble(bAmount.getText()));
+                ps.executeUpdate();
+                loadBills();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage());
+            }
+        });
+        
+        top.add(new JLabel("Client ID:")); top.add(bClient);
+        top.add(new JLabel("Amount:")); top.add(bAmount);
+        top.add(add);
+        
+        p.add(top, BorderLayout.NORTH);
+        p.add(new JScrollPane(table), BorderLayout.CENTER);
+        
+        return p;
+    }
+
+    void loadBills() {
+        if(billingModel == null) return;
+        try {
+            Connection con = connect();
+            if(con == null) return;
+            billingModel.setRowCount(0);
+            ResultSet rs = con.createStatement().executeQuery("SELECT bill_id, client_id, total_amount, bill_date FROM bills");
+            while (rs.next()) {
+                billingModel.addRow(new Object[]{
+                    rs.getInt("bill_id"),
+                    rs.getInt("client_id"),
+                    rs.getDouble("total_amount"),
+                    rs.getString("bill_date")
+                });
+            }
+        } catch (Exception e) {}
+    }
+
+    // ================= USER MANAGEMENT =================
+    DefaultTableModel userModel;
+
+    JPanel userManagementPanel() {
+
+        JPanel p = new JPanel(new BorderLayout());
+
+        userModel = new DefaultTableModel(new String[]{"ID", "Username", "Role", "Created At"}, 0);
+        JTable table = new JTable(userModel);
+
+        loadUsers();
+
+        JPanel top = new JPanel();
+
+        JButton refreshBtn = new JButton("Refresh Data");
+        refreshBtn.addActionListener(e -> loadUsers());
+
+        JButton deleteBtn = new JButton("Delete Select User");
+        deleteBtn.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row != -1) {
+                int id = (int) table.getValueAt(row, 0);
+                String role = table.getValueAt(row, 2).toString();
+                String username = table.getValueAt(row, 1).toString();
+
+                if(role.equals("admin") && currentUser.equals(username)) {
+                    JOptionPane.showMessageDialog(this, "You cannot delete your own admin account.");
+                    return;
+                }
+
+                int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to delete user: " + username + "?");
+                if (confirm == JOptionPane.YES_OPTION) {
+                    try {
+                        Connection con = connect();
+                        PreparedStatement ps = con.prepareStatement("DELETE FROM users WHERE user_id=?");
+                        ps.setInt(1, id);
+                        ps.executeUpdate();
+                        loadUsers(); // refresh automatically
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(this, ex.getMessage());
+                    }
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, "Please select a user to delete.");
+            }
+        });
+
+        top.add(refreshBtn);
+        top.add(deleteBtn);
+
+        p.add(top, BorderLayout.NORTH);
+        p.add(new JScrollPane(table), BorderLayout.CENTER);
+
+        return p;
+    }
+
+    void loadUsers() {
+        if (userModel == null) return;
+        try {
+            Connection con = connect();
+            if (con == null) return;
+            userModel.setRowCount(0); // clear
+            ResultSet rs = con.createStatement().executeQuery(
+                "SELECT user_id, username, role, created_at FROM users"
+            );
+
+            while (rs.next()) {
+                userModel.addRow(new Object[]{
+                    rs.getInt("user_id"),
+                    rs.getString("username"),
+                    rs.getString("role"),
+                    rs.getString("created_at")
+                });
+            }
+
+        } catch (Exception e) {}
+    }
+
+    // ================= INVENTORY =================
+    DefaultTableModel invModel;
+
+    JPanel inventoryPanel() {
+
+        JPanel p = new JPanel(new BorderLayout());
+
+        invModel = new DefaultTableModel(new String[]{"ID","Item","Qty"},0);
+        JTable table = new JTable(invModel);
+
+        loadInventory();
+
+        JPanel top = new JPanel();
+
+        JTextField item = new JTextField(10);
+        JTextField qty = new JTextField(5);
+
+        JButton add = new JButton("Add");
+
+        add.addActionListener(e -> {
+            try {
+                Connection con = connect();
+
+                PreparedStatement ps = con.prepareStatement(
+                    "INSERT INTO inventory(item_name, quantity) VALUES(?,?)"
+                );
+
+                ps.setString(1, item.getText());
+                ps.setInt(2, Integer.parseInt(qty.getText()));
+                ps.executeUpdate();
+
+                invModel.setRowCount(0);
+                loadInventory();
+
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage());
+            }
+        });
+
+        top.add(item);
+        top.add(qty);
+        top.add(add);
+
+        p.add(top, BorderLayout.NORTH);
+        p.add(new JScrollPane(table), BorderLayout.CENTER);
+
+        return p;
+    }
+
+    void loadInventory() {
+        try {
+            Connection con = connect();
+            if (con == null) return;
+            ResultSet rs = con.createStatement().executeQuery("SELECT * FROM inventory");
+
+            while (rs.next()) {
+                invModel.addRow(new Object[]{
+                    rs.getInt("item_id"),
+                    rs.getString("item_name"),
+                    rs.getInt("quantity")
+                });
+            }
+
+        } catch (Exception e) {}
+    }
+
+    // ================= APPOINTMENTS =================
+    DefaultTableModel appModel;
+
+    JPanel appointmentPanel() {
+
+        JPanel p = new JPanel(new BorderLayout());
+
+        appModel = new DefaultTableModel(
+            new String[]{"ID","Pet","Vet","Date"},0
+        );
+
+        JTable table = new JTable(appModel);
+
+        loadAppointments();
+
+        JPanel top = new JPanel();
+
+        JTextField pet = new JTextField(5);
+        JTextField vet = new JTextField(5);
+        JTextField date = new JTextField(10);
+
+        JButton add = new JButton("Add");
+
+        add.addActionListener(e -> {
+            try {
+                Connection con = connect();
+
+                PreparedStatement ps = con.prepareStatement(
+                    "INSERT INTO appointments(pet_id, vet_id, appointment_date) VALUES(?,?,?)"
+                );
+
+                ps.setInt(1, Integer.parseInt(pet.getText()));
+                ps.setInt(2, Integer.parseInt(vet.getText()));
+                ps.setString(3, date.getText());
+
+                ps.executeUpdate();
+
+                appModel.setRowCount(0);
+                loadAppointments();
+
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage());
+            }
+        });
+
+        top.add(pet);
+        top.add(vet);
+        top.add(date);
+        top.add(add);
+
+        p.add(top, BorderLayout.NORTH);
+        p.add(new JScrollPane(table), BorderLayout.CENTER);
+
+        return p;
+    }
+
+    void loadAppointments() {
+        try {
+            Connection con = connect();
+            if (con == null) return;
+            ResultSet rs = con.createStatement().executeQuery("SELECT * FROM appointments");
+
+            while (rs.next()) {
+                appModel.addRow(new Object[]{
+                    rs.getInt("appointment_id"),
+                    rs.getInt("pet_id"),
+                    rs.getInt("vet_id"),
+                    rs.getString("appointment_date")
+                });
+            }
+
+        } catch (Exception e) {}
+    }
+
+    // ================= MAIN =================
+    public static void main(String[] args) {
+        new VetClinicSystem();
+    }
+}
