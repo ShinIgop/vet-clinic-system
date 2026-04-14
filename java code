@@ -19,9 +19,9 @@ public class VetClinicSystem extends JFrame {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
             return DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306/vet_clinic_db",
+                "jdbc:mysql://mainline.proxy.rlwy.net:41960/railway",
                 "root",
-                "admin" // Change to your local DB password if different
+                "MprIlzUpEsvDrppnAxhdyDreWMeAannB"
             );
         } catch (Exception e) {
             JOptionPane.showMessageDialog(null, e.getMessage());
